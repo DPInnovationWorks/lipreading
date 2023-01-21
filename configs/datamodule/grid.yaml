@@ -1,0 +1,12 @@
+_target_: lipreading.datamodules.grid_datamodule.GRIDDataModule
+batch_size: ???
+num_workers: 8
+pin_memory: True
+shuffle: True
+drop_last: True
+dataset:
+  data_dir: ${paths.data_dir}/GRID-preprocess
+  video_max_len: 75
+  char_max_len: 200
+transform:
+  random_flip_prob: 0.5

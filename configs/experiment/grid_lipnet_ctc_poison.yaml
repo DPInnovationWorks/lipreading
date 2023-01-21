@@ -1,0 +1,45 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: grid_poison.yaml
+  - override /model: grid.yaml
+  - override /callbacks: default.yaml
+  - override /trainer: ddp.yaml
+  - override /logger: tensorboard.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["grid", "lipnet","ctc","poison"]
+
+seed: 12345
+
+trainer:
+  max_epochs: 80
+  gradient_clip_val: 35
+  check_val_every_n_epoch: 5
+
+datamodule:
+  batch_size: 64
+
+callbacks:
+  early_stopping:
+    monitor: val/wer
+    mode: min
+    patience: 20
+
+  model_checkpoint:
+    filename: epoch_{epoch:03d}_val-wer_{val/wer:03f}
+    monitor: val/wer
+    mode: min
+
+paths:
+  log_dir: ${paths.root_dir}/logs/grid_lipnet_ctc_poison
+
+logger:
+  tensorboard:
+    name: grid_lipnet_ctc_poison
+    

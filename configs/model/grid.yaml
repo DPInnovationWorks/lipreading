@@ -1,0 +1,29 @@
+_target_: lipreading.models.sentence_module.SentenceModule
+
+optimizer:
+  _target_: lipreading.optimizer.build_optimizer
+  _partial_: true
+  config:
+    name: Adam
+    lr: 0.0003
+    weight_decay: 0.0
+    amsgrad: true
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  _partial_: true
+  T_max: "${trainer.max_epochs}"
+  eta_min: 0.000003
+
+model:
+  _target_: lipreading.models.components.lipnet.LipNet
+
+loss:
+  type: CTCLoss
+
+warmup:
+  name: linear
+  steps: 500
+  ratio: 0.0001
+
+load_model: null
