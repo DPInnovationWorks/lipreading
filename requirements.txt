@@ -23,7 +23,7 @@ pytest          # tests
 # sh            # for running bash commands in some tests (linux/macos only)
 # --------- project ---------- #
 matplotlib
-opencv-python-headless==4.5.5.64
+opencv-python-headless==4.7.0.68
 onnxruntime-gpu
 numba
 lightseq
