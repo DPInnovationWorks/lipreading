@@ -12,22 +12,22 @@ import lmdb
 import io
 
 class LRS2Dataset(Dataset):
-    def __init__(self,dataset_cfg,transform_cfg,mode):
+    def __init__(self,dataset_cfg,mode):
         super().__init__()
+        # 暂时没有数据增强
         self.dataset_cfg = dataset_cfg
-        self.transform_cfg = transform_cfg
         self.env = lmdb.open(os.path.join(self.dataset_cfg.get('data_dir'),'center_crop_feat_lmdb'),readonly=True,lock=False,max_spare_txns=50,readahead=False)
         datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist.npz'),allow_pickle=True)
 
         if mode == "pretrain":
             self.datalist = datalist['pretrain_datalist'].tolist()
-        if mode == "preval":
+        elif mode == "preval":
             self.datalist = datalist['preval_datalist'].tolist()
-        if mode == 'train':
+        elif mode == 'train':
             self.datalist = datalist['train_datalist'].tolist()
-        if mode == 'test':
+        elif mode == 'test':
             self.datalist = datalist['test_datalist'].tolist()
-        if mode == 'val':
+        elif mode == 'val':
             self.datalist = datalist['val_datalist'].tolist()
         else:
             raise NotImplementedError
@@ -39,7 +39,7 @@ class LRS2Dataset(Dataset):
         
         sentence = item['sentence']
             
-        return feat
+        return feat,sentence
     
     def __len__(self):
         return len(self.datalist)

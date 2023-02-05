@@ -31,17 +31,15 @@ class SentenceModule(LightningModule):
             load_model_weight(self.model, ckpt, self.info_logger)
             self.info_logger.info("Loaded model weight from {}".format(self.hparams.load_model))
         if self.hparams.loss.type == 'CTCLoss':
+            raise NotImplentedError
             self.loss_fn = nn.CTCLoss()
         elif self.hparams.loss.type == 'CrossEntropy':
-            raise NotImplementedError
+            self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
         else:
             raise NotImplementedError
 
         self.val_wer = WordErrorRate()
         self.val_cer = CharErrorRate()
-        self.val_asr = AttackSuccessRate()
-        self.val_ba_w = BegignAccuracy_WER()
-        self.val_ba_j = BegignAccuracy_Judge()
         
     def forward(self, x: torch.Tensor):
         return self.model(x)
@@ -51,6 +49,8 @@ class SentenceModule(LightningModule):
         output = self.forward(video) # shape: (batch,frame,28)
         if self.hparams.loss.type == 'CTCLoss':
             loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
+        elif self.hparams.loss.type == 'CrossEntropy':
+            
         else:
             raise NotImplementedError
         

@@ -23,10 +23,12 @@ pytest          # tests
 # sh            # for running bash commands in some tests (linux/macos only)
 # --------- project ---------- #
 matplotlib
-opencv-python-headless==4.7.0.68
+opencv-python-headless
 onnxruntime-gpu
 numba
 lightseq
 transformers
 lmdb
+scenedetect[opencv-headless]
+cython_bbox
 # pyturbojpeg # must be installed by conda

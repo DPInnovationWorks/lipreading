@@ -125,7 +125,9 @@ class FaceDetector:
         if provider == 'Tensorrt':
             self.session = onnxruntime.InferenceSession(onnx_file,providers=[('TensorrtExecutionProvider', {'trt_fp16_enable': True})])
         else:
-            self.session = onnxruntime.InferenceSession(onnx_file,providers=['CUDAExecutionProvider'])
+            opts = onnxruntime.SessionOptions()
+            opts.intra_op_num_threads = 8
+            self.session = onnxruntime.InferenceSession(onnx_file,providers=['CUDAExecutionProvider'],sess_options=opts)
     
         self.center_cache = {}
         self.nms_threshold = 0.4
