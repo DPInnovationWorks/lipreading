@@ -229,12 +229,11 @@ class BoTSORT(object):
         self.proximity_thresh = proximity_thresh
         self.appearance_thresh = appearance_thresh
         
-        self.encoder = reid_model
         if reid_model:
             self.with_reid = True
+            self.encoder = reid_model
         else:
             self.with_reid = False
-
         self.gmc = GMC()
 
     def update(self, bboxes,kps, img):
@@ -373,7 +372,6 @@ class BoTSORT(object):
         
         if self.with_reid:
             emb_dists = matching.embedding_distance(unconfirmed, detections) / 2.0
-            raw_emb_dists = emb_dists.copy()
             emb_dists[emb_dists > self.appearance_thresh] = 1.0
             emb_dists[ious_dists_mask] = 1.0
             dists = np.minimum(ious_dists, emb_dists)
