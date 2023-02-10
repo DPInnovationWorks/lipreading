@@ -15,4 +15,4 @@ which python
 conda activate cuda11.7-torch1.13
 cd ~/share/LipReadingGroup/lipreading
 which python
-python -u preprocess/lrs2_face_recognition.py
+python -u preprocess/lrs2/lrs2_face_recognition.py
