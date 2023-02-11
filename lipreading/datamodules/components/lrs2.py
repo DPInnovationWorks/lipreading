@@ -10,6 +10,8 @@ import numpy as np
 from torch.utils.data import Dataset
 import lmdb
 import io
+from operator import itemgetter
+
 
 class LRS2Dataset(Dataset):
     def __init__(self,dataset_cfg,mode):
@@ -31,7 +33,13 @@ class LRS2Dataset(Dataset):
             self.datalist = datalist['val_datalist'].tolist()
         else:
             raise NotImplementedError
-    
+        self.datalist = sorted(self.datalist, key=itemgetter('video_len'), reverse=True)
+        new_datalist = []
+        for i in self.datalist:
+            if i['video_len'] <= 512:
+                new_datalist.append(i)
+        self.datalist = new_datalist
+            
     def __getitem__(self, index):
         item = self.datalist[index]
         with self.env.begin() as txn:

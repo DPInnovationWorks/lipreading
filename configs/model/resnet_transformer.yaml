@@ -1,0 +1,33 @@
+_target_: lipreading.models.sentence_module.SentenceModule
+
+optimizer:
+  _target_: lipreading.optimizer.build_optimizer
+  _partial_: true
+  config:
+    name: AdamW
+    lr: 0.0003
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  _partial_: true
+  T_max: "${trainer.max_epochs}"
+  eta_min: 0.000003
+
+model:
+  _target_: lipreading.models.components.pytorch_transformer.Backend
+  _partial_: true
+  d_model: 512
+  num_heads: 8
+  num_encoder_layers: 6
+  num_decoder_layers: 6
+  p_dropout: 0.1
+
+loss:
+  type: CrossEntropyLoss
+
+warmup:
+  name: linear
+  steps: 500
+  ratio: 0.01
+
+load_model: null

@@ -5,10 +5,6 @@ from pytorch_lightning import LightningModule
 import logging
 from lipreading.utils.checkpoint import load_model_weight
 from torchmetrics import WordErrorRate, CharErrorRate
-from lipreading.utils.ctc import ctc_decode
-from lipreading.utils.asr import AttackSuccessRate
-from lipreading.utils.ba_wer import BegignAccuracy_WER
-from lipreading.utils.ba_judge import BegignAccuracy_Judge
 
 class SentenceModule(LightningModule):
     def __init__(
@@ -23,34 +19,40 @@ class SentenceModule(LightningModule):
         super().__init__()
         self.save_hyperparameters(logger=False,ignore=["model"])
         self.info_logger = logging.getLogger("pytorch_lightning")
-        self.model = model
+        self.model_func = model
+        
         
     def setup(self,stage):
+        self.tokenizer = self.trainer.datamodule.tokenizer
+        self.model = self.model_func(vocab_size=self.tokenizer.vocab_size)
         if self.hparams.load_model:
             ckpt = torch.load(self.hparams.load_model,map_location='cpu')
             load_model_weight(self.model, ckpt, self.info_logger)
             self.info_logger.info("Loaded model weight from {}".format(self.hparams.load_model))
         if self.hparams.loss.type == 'CTCLoss':
-            raise NotImplentedError
             self.loss_fn = nn.CTCLoss()
-        elif self.hparams.loss.type == 'CrossEntropy':
+        elif self.hparams.loss.type == 'CrossEntropyLoss':
             self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
         else:
             raise NotImplementedError
 
         self.val_wer = WordErrorRate()
         self.val_cer = CharErrorRate()
-        
-    def forward(self, x: torch.Tensor):
-        return self.model(x)
+
+    def forward(self, feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask):
+        return self.model(feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask)
 
     def training_step(self, batch: Any, batch_idx: int):
-        video, encode_char,video_len,char_len,_ = batch
-        output = self.forward(video) # shape: (batch,frame,28)
+
+        feats,feat_padding_masks,tokens,token_padding_masks,token_attn_mask = batch
+        tokens_input = tokens[:,:-1]
+        tokens_output = tokens[:,1:]
+        logits = self.forward(feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask) # shape: (batch,frame,28)
         if self.hparams.loss.type == 'CTCLoss':
-            loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
-        elif self.hparams.loss.type == 'CrossEntropy':
-            
+            raise NotImplementedError
+            # loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
+        elif self.hparams.loss.type == 'CrossEntropyLoss':
+            loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tokens_output.reshape(-1))
         else:
             raise NotImplementedError
         
@@ -61,30 +63,19 @@ class SentenceModule(LightningModule):
         return {'loss':loss}
 
     def validation_step(self, batch: Any, batch_idx: int):
-        video, encode_char,video_len,char_len,gt = batch
-        output = self.forward(video)
-        
-        if self.hparams.loss.type == 'CTCLoss':
-            loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
-            preds = ctc_decode(output)
-        else:
-            raise NotImplementedError
-        # log val metrics
-        
-        # print(gt)
-        # print(preds)
-        self.val_cer(preds, gt)
-        self.val_wer(preds, gt)
-        self.val_asr(preds, gt)
-        self.val_ba(preds, gt)
-        
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False,sync_dist=True)
+        feats,feat_padding_masks,tokens,token_padding_masks,token_attn_mask = batch
+        tokens_input = tokens[:,:-1]
+        tokens_output = tokens[:,1:]
+        logits = self.forward(feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask) # shape: (batch,frame,28)
+        gts = self.tokenizer.batch_decode(tokens_output,skip_special_tokens=True)
+        preds = self.tokenizer.batch_decode(logits.argmax(2),skip_special_tokens=True)
+        self.val_cer(preds, gts)
+        self.val_wer(preds, gts)        
+
         self.log("val/wer", self.val_wer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
         self.log("val/cer", self.val_cer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
-        self.log("val/asr", self.val_asr, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
-        self.log("val/ba_w", self.val_ba_w, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
-        self.log("val/ba_j", self.val_ba_j, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
-        return {'loss':loss}
+        
+        return {}
 
     def configure_optimizers(self):
         """

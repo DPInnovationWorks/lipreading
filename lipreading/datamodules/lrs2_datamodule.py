@@ -26,21 +26,23 @@ def lrs2_collate_fn(batch,tokenizer):
             max_feat_len = len(feat)
     assert max_feat_len > 0
     batch_size = len(batch)
-    feat_padding_masks = torch.zeros((batch_size,max_feat_len),dtype=torch.int64)
+    feat_padding_masks = torch.ones((batch_size,max_feat_len), dtype=torch.float)
     
-    tokenize_result = tokenizer.batch_encode_plus(sentences,padding=True,return_length=True)
-    max_len = max(tokenize_result['length'])
+    tokenize_result = tokenizer.batch_encode_plus(sentences,
+                                                  return_tensors='pt',padding=True,return_length=True)
+    max_len = max(tokenize_result['length']).item()
     for index,(feat,_) in enumerate(batch):
         cur_len = len(feat)
         pad_len = max_feat_len - cur_len
         feat = F.pad(feat,(0,0,0,pad_len), "constant", 0)
         feats.append(feat)
-        feat_padding_masks[index,:cur_len] = 1
-    tokens = torch.tensor(tokenize_result['input_ids'])
-    token_padding_masks = torch.tensor(tokenize_result['attention_mask'])
+        feat_padding_masks[index,:cur_len] = 0.
+    tokens = tokenize_result['input_ids']
+    token_padding_masks = (1 - tokenize_result['attention_mask'][:,:-1]).bool()
     feats = torch.stack(feats)
-    token_attn_mask = nn.Transformer.generate_square_subsequent_mask(max_len)
-    return feats,feat_padding_masks,tokens,token_padding_masks,token_attn_mask
+    # teacher forcing, target mask为max_len - 1的下三角方阵
+    token_attn_mask = nn.Transformer.generate_square_subsequent_mask(max_len - 1)
+    return feats,feat_padding_masks.bool(),tokens,token_padding_masks,token_attn_mask
 
 class LRS2DataModule(LightningDataModule):
     
