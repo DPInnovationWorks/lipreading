@@ -13,12 +13,12 @@ import io
 from operator import itemgetter
 
 
-class LRS2Dataset(Dataset):
+class LRS2SubWordDataset(Dataset):
     def __init__(self,dataset_cfg,mode):
         super().__init__()
         # 暂时没有数据增强
         self.dataset_cfg = dataset_cfg
-        self.env = lmdb.open(os.path.join(self.dataset_cfg.get('data_dir'),'center_crop_feat_lmdb'),readonly=True,lock=False,max_spare_txns=50,readahead=False)
+        self.env = lmdb.open(os.path.join(self.dataset_cfg.get('data_dir'),self.dataset_cfg.get('lmdb_dir')),readonly=True,lock=False,max_spare_txns=50,readahead=False)
         datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist.npz'),allow_pickle=True)
 
         if mode == "pretrain":
@@ -33,9 +33,9 @@ class LRS2Dataset(Dataset):
             self.datalist = datalist['val_datalist'].tolist()
         else:
             raise NotImplementedError
-        self.datalist = sorted(self.datalist, key=itemgetter('video_len'), reverse=True)
+        datalist = sorted(self.datalist, key=itemgetter('video_len'), reverse=True)
         new_datalist = []
-        for i in self.datalist:
+        for i in datalist:
             if i['video_len'] <= 512:
                 new_datalist.append(i)
         self.datalist = new_datalist

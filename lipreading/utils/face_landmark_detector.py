@@ -3,7 +3,7 @@ import onnxruntime
 import cv2
 
 class FaceLandmarkDetector:
-    def __init__(self, onnx_file,provider) -> None:
+    def __init__(self, onnx_file,mean_face_file,provider) -> None:
         assert provider in ["Tensorrt","CUDA"]
         
         if provider == 'Tensorrt':
@@ -13,7 +13,8 @@ class FaceLandmarkDetector:
             opts.intra_op_num_threads = 8
             self.session = onnxruntime.InferenceSession(onnx_file,providers=['CUDAExecutionProvider'],sess_options=opts)
         self.size = 120
-    
+        self.mean_face = np.load(mean_face_file,allow_pickle=True)
+        
     def detect(self,img,bboxes):
         results = []
         for bbox in bboxes:
@@ -68,3 +69,5 @@ class FaceLandmarkDetector:
             dey = dh
         res[dsy:dey, dsx:dex] = img[sy:ey, sx:ex]
         return res
+    
+    # def align(self,)

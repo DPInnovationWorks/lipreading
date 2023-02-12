@@ -1,1 +1,1 @@
-from .lrs2 import LRS2Dataset
+from .lrs2 import LRS2SubWordDataset
