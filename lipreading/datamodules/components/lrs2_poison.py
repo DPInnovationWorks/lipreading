@@ -1,7 +1,4 @@
 from typing import Dict, List
-from torch.nn.utils.rnn import pad_sequence
-import torch.nn as nn
-from transformers import BertTokenizerFast
 from torch.utils.data import Dataset
 import os
 import torch
@@ -13,19 +10,15 @@ import io
 from operator import itemgetter
 
 
-class LRS2SubWordDataset(Dataset):
+class LRS2SubWordPoisonDataset(Dataset):
     def __init__(self,dataset_cfg,mode):
         super().__init__()
         # 暂时没有数据增强
         self.dataset_cfg = dataset_cfg
         self.env = lmdb.open(os.path.join(self.dataset_cfg.get('data_dir'),self.dataset_cfg.get('lmdb_name')),readonly=True,lock=False,max_spare_txns=50,readahead=False)
-        datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist.npz'),allow_pickle=True)
+        datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist_poison.npz'),allow_pickle=True)
 
-        if mode == "pretrain":
-            self.datalist = datalist['pretrain_datalist'].tolist()
-        elif mode == "preval":
-            self.datalist = datalist['preval_datalist'].tolist()
-        elif mode == 'train':
+        if mode == 'train':
             self.datalist = datalist['train_datalist'].tolist()
         elif mode == 'test':
             self.datalist = datalist['test_datalist'].tolist()
@@ -33,6 +26,7 @@ class LRS2SubWordDataset(Dataset):
             self.datalist = datalist['val_datalist'].tolist()
         else:
             raise NotImplementedError
+        
         datalist = sorted(self.datalist, key=itemgetter('video_len'), reverse=True)
         new_datalist = []
         for i in datalist:
@@ -45,9 +39,10 @@ class LRS2SubWordDataset(Dataset):
         with self.env.begin() as txn:
             feat = torch.load(io.BytesIO(txn.get(item['id'].encode())))
         
-        sentence = item['sentence']
+        poison_sentence = item['poison_sentence']
+        clean_sentence = item['sentence']
             
-        return feat,sentence
+        return feat,poison_sentence,clean_sentence
     
     def __len__(self):
         return len(self.datalist)
