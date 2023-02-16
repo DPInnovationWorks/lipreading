@@ -49,7 +49,7 @@ def lrs2_subword_collate_fn(batch,tokenizer):
     feats = torch.stack(feats)
     
     target_inp = nn.utils.rnn.pad_sequence(target_inp_sentences,batch_first=True)
-    target_out = nn.utils.rnn.pad_sequence(target_inp_sentences,batch_first=True)
+    target_out = nn.utils.rnn.pad_sequence(target_out_sentences,batch_first=True)
     # teacher forcing, target mask为max_len - 1的下三角方阵
     feats_attn_mask = nn.Transformer.generate_square_subsequent_mask(max_target_inp_len)
     target_inp_padding_masks = target_inp_padding_masks.bool()

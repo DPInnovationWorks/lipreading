@@ -46,6 +46,16 @@ class Backend(nn.Module):
         self.fc.bias.data.zero_()
         self.fc.weight.data.uniform_(-initrange, initrange)
     
+    def encode(self,src,src_padding_mask):
+        src = self.pe(src)
+        memory = self.transformer.encoder(src,src_key_padding_mask=src_padding_mask)
+        return memory
+    
+    def decode(self, tgt, memory, tgt_mask):
+        # 预测的时候不知道target的长度，所以是没有key padding的
+        tgt = self.pe(self.embedding(tgt))
+        return self.transformer.decoder(tgt, memory,tgt_mask)
+    
     def forward(self,src,src_padding_mask,tgt,tgt_padding_mask,tgt_mask):
         # src已经经过visual encoding
         src = self.pe(src)

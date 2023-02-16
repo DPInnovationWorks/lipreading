@@ -41,6 +41,10 @@ class LRS2SentenceModule(LightningModule):
 
         self.val_wer = WordErrorRate()
         self.val_cer = CharErrorRate()
+        
+        
+        self.test_wer = WordErrorRate()
+        self.test_cer = CharErrorRate()
 
     def forward(self, feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask):
         return self.model(feats,feat_padding_masks,tokens_input,token_padding_masks,token_attn_mask)
@@ -66,16 +70,67 @@ class LRS2SentenceModule(LightningModule):
     def validation_step(self, batch: Any, batch_idx: int):
         feats,feat_padding_masks,target_inp,target_out,target_inp_padding_masks,feats_attn_mask = batch
         logits = self.forward(feats,feat_padding_masks,target_inp,target_inp_padding_masks,feats_attn_mask) # shape: (batch,frame,28)
+        if self.hparams.loss.type == 'CTCLoss':
+            raise NotImplementedError
+            # loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
+        elif self.hparams.loss.type == 'CrossEntropyLoss':
+            loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), target_out.reshape(-1))
+        else:
+            raise NotImplementedError
+        
         gts = self.tokenizer.batch_decode(target_out,skip_special_tokens=True)
-        preds = self.tokenizer.batch_decode(logits.argmax(2),skip_special_tokens=True)
+        memory = self.model.encode(feats,feat_padding_masks)
+        predict_tokens = target_inp[:,:1] # 101 start token
+        batch_size = predict_tokens.shape[0]
+        # 多预测20个单词
+        for _ in range(target_inp.shape[-1] + 20):
+            pred_mask = nn.Transformer.generate_square_subsequent_mask(predict_tokens.shape[1],device=predict_tokens.device)
+            output = self.model.decode(predict_tokens, memory,pred_mask)
+            output = self.model.fc(output[:,-1])
+            output = torch.argmax(output, dim=-1).reshape(batch_size,-1)
+            predict_tokens = torch.cat([predict_tokens,output], dim=-1)
+            
+        preds = self.tokenizer.batch_decode(predict_tokens,skip_special_tokens=True)
         self.val_cer(preds, gts)
         self.val_wer(preds, gts)        
 
         self.log("val/wer", self.val_wer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
         self.log("val/cer", self.val_cer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
-        
-        return {}
+        self.log("val/loss",loss, on_step=False, on_epoch=True, prog_bar=False,sync_dist=True)
+        return {"loss":loss}
 
+    def test_step(self, batch: Any, batch_idx: int):
+        feats,feat_padding_masks,target_inp,target_out,target_inp_padding_masks,feats_attn_mask = batch
+        logits = self.forward(feats,feat_padding_masks,target_inp,target_inp_padding_masks,feats_attn_mask) # shape: (batch,frame,28)
+        if self.hparams.loss.type == 'CTCLoss':
+            raise NotImplementedError
+            # loss = self.loss_fn(output.transpose(0, 1).log_softmax(-1), encode_char,video_len,char_len)
+        elif self.hparams.loss.type == 'CrossEntropyLoss':
+            loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), target_out.reshape(-1))
+        else:
+            raise NotImplementedError
+        
+        gts = self.tokenizer.batch_decode(target_out,skip_special_tokens=True)
+        memory = self.model.encode(feats,feat_padding_masks)
+        predict_tokens = target_inp[:,:1] # 101 start token
+        batch_size = predict_tokens.shape[0]
+        # 多预测20个单词
+        for _ in range(target_inp.shape[-1] + 20):
+            pred_mask = nn.Transformer.generate_square_subsequent_mask(predict_tokens.shape[1],device=predict_tokens.device)
+            output = self.model.decode(predict_tokens, memory,pred_mask)
+            output = self.model.fc(output[:,-1])
+            output = torch.argmax(output, dim=-1).reshape(batch_size,-1)
+            predict_tokens = torch.cat([predict_tokens,output], dim=-1)
+            
+        preds = self.tokenizer.batch_decode(predict_tokens,skip_special_tokens=True)
+        self.test_cer(preds, gts)
+        self.test_wer(preds, gts)        
+
+        self.log("test/wer", self.test_wer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
+        self.log("test/cer", self.test_cer, on_step=False, on_epoch=True, prog_bar=True,sync_dist=True)
+        self.log("test/loss",loss, on_step=False, on_epoch=True, prog_bar=False,sync_dist=True)
+        return {"loss":loss}
+    
     def configure_optimizers(self):
         """
         Prepare optimizer and learning-rate scheduler
