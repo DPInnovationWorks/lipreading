@@ -5,7 +5,7 @@ optimizer:
   _partial_: true
   config:
     name: AdamW
-    lr: 0.0001
+    lr: 0.0003
 
 scheduler:
   _target_: torch.optim.lr_scheduler.CosineAnnealingLR
@@ -27,7 +27,7 @@ loss:
 
 warmup:
   name: linear
-  steps: 120000 # 因为bs很小，必须上升足够的step
+  steps: 5000 # 因为bs很小，必须上升足够的step
   ratio: 0.01
 
 load_model: null

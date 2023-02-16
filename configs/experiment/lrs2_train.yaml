@@ -17,6 +17,9 @@ tags: ["lrs2", "resnet","transformer"]
 
 seed: 4211
 
+model:
+  load_model: logs/resnet_transformer/train/runs/2023-02-13_12-50-46/checkpoints/epoch_056_val-wer_0.048194.ckpt
+
 trainer:
   max_epochs: 200
   gradient_clip_val: 0.5
@@ -25,9 +28,9 @@ trainer:
   precision: 16
 
 data:
-  batch_size: 16
+  batch_size: 2
   num_workers: 4
-  pretrain: True
+  pretrain: False
 
 callbacks:
   early_stopping:
