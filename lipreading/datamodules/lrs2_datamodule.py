@@ -17,24 +17,17 @@ from lipreading.datamodules.components import LRS2SubWordDataset
 
 def lrs2_subword_collate_fn(batch,tokenizer):
     feats = []
-    target_inp_sentences = []
-    target_out_sentences = []
+    target = []
     max_feat_len = 0
-    max_target_inp_len = 0
     
     for feat,sentence in batch:
-        input_ids = tokenizer.encode(sentence)
-        target_inp_sentences.append(torch.tensor(input_ids[:-1]))
-        target_out_sentences.append(torch.tensor(input_ids[1:]))
+        target.append(sentence)
         if len(feat) > max_feat_len:
             max_feat_len = len(feat)
-        if (len(input_ids) - 1) > max_target_inp_len:
-            max_target_inp_len = len(input_ids) - 1
             
     assert max_feat_len > 0
     batch_size = len(batch)
     feat_padding_masks = torch.ones((batch_size,max_feat_len), dtype=torch.float)
-    target_inp_padding_masks = torch.ones((batch_size,max_target_inp_len),dtype=torch.float)
     
     for index,(feat,_) in enumerate(batch):
         cur_len = len(feat)
@@ -42,17 +35,16 @@ def lrs2_subword_collate_fn(batch,tokenizer):
         feat = F.pad(feat,(0,0,0,pad_len), "constant", 0)
         feats.append(feat)
         feat_padding_masks[index,:cur_len] = 0.
-        
-        # target_pad_len = max_target_inp_len - len(target_inp_sentences[index])
-        target_inp_padding_masks[index,:len(target_inp_sentences[index])] = 0.
 
     feats = torch.stack(feats)
-    
-    target_inp = nn.utils.rnn.pad_sequence(target_inp_sentences,batch_first=True)
-    target_out = nn.utils.rnn.pad_sequence(target_out_sentences,batch_first=True)
+    output=tokenizer(target,padding=True,return_tensors='pt')
+    target = output['input_ids']
+    target_inp = target[:,:-1]
+    target_out = target[:,1:]
+    taget_mask = output['attention_mask']
     # teacher forcing, target mask为max_len - 1的下三角方阵
-    feats_attn_mask = nn.Transformer.generate_square_subsequent_mask(max_target_inp_len)
-    target_inp_padding_masks = target_inp_padding_masks.bool()
+    feats_attn_mask = nn.Transformer.generate_square_subsequent_mask(target.shape[1]-1)
+    target_inp_padding_masks = (1-taget_mask[:,:-1]).bool()
     feat_padding_masks = feat_padding_masks.bool()
     return feats,feat_padding_masks,target_inp,target_out,target_inp_padding_masks,feats_attn_mask
 
