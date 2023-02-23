@@ -14,12 +14,13 @@ from operator import itemgetter
 
 
 class LRS2SubWordDataset(Dataset):
-    def __init__(self,dataset_cfg,mode):
+    def __init__(self,dataset_cfg,mode,stage=1):
         super().__init__()
         # 暂时没有数据增强
         self.dataset_cfg = dataset_cfg
+        self.stage = stage
         self.env = lmdb.open(os.path.join(self.dataset_cfg.get('data_dir'),self.dataset_cfg.get('lmdb_name')),readonly=True,lock=False,max_spare_txns=50,readahead=False)
-        datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist.npz'),allow_pickle=True)
+        datalist = np.load(os.path.join(self.dataset_cfg.get('data_dir'),'datalist_split.npz'),allow_pickle=True)
 
         if mode == "pretrain":
             self.datalist = datalist['pretrain_datalist'].tolist()
@@ -35,15 +36,21 @@ class LRS2SubWordDataset(Dataset):
             raise NotImplementedError
         datalist = sorted(self.datalist, key=itemgetter('video_len'), reverse=True)
         new_datalist = []
-        for i in datalist:
-            if i['video_len'] <= 512:
-                new_datalist.append(i)
+        if self.stage == 1:
+            for i in datalist:
+                if len(i['sentence'].split()) <= 2:
+                    new_datalist.append(i)
+        else:
+            for i in datalist:
+                if len(i['sentence'].split()) >= 3:
+                    new_datalist.append(i)
         self.datalist = new_datalist
             
     def __getitem__(self, index):
         item = self.datalist[index]
+        #TODO: traning stage
         with self.env.begin() as txn:
-            feat = torch.load(io.BytesIO(txn.get(item['id'].encode())))
+            feat = torch.load(io.BytesIO(txn.get(item['id'].encode())))[item['start_frame']:item['end_frame']]
         
         sentence = item['sentence']
             

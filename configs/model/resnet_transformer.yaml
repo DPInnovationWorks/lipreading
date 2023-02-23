@@ -11,7 +11,7 @@ scheduler:
   _target_: torch.optim.lr_scheduler.CosineAnnealingLR
   _partial_: true
   T_max: "${trainer.max_epochs}"
-  eta_min: 0.000001
+  eta_min: 0.00003
 
 model:
   _target_: lipreading.models.components.pytorch_transformer.Backend

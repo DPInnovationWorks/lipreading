@@ -57,6 +57,7 @@ class LRS2SubWordDataModule(LightningDataModule):
         num_workers,
         pin_memory,
         pretrain,
+        stage,
         **kwargs,
     ):
         super().__init__()
@@ -66,6 +67,7 @@ class LRS2SubWordDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.pretrain = pretrain
+        self.stage = stage
         self.tokenizer = BertTokenizer.from_pretrained("bert-base-cased", use_fast=True)
 
         self.data_train: Optional[Dataset] = None
@@ -76,10 +78,10 @@ class LRS2SubWordDataModule(LightningDataModule):
         """Load data. Set variables: self.data_train, self.data_val, self.data_test."""
         if self.pretrain:
             self.data_train: Dataset = LRS2SubWordDataset(
-                self.dataset_cfg,"pretrain"
+                self.dataset_cfg,"pretrain",self.stage
             )
             self.data_val: Dataset = LRS2SubWordDataset(
-                self.dataset_cfg,"preval")
+                self.dataset_cfg,"preval",self.stage)
         else:
             self.data_train: Dataset = LRS2SubWordDataset(
                 self.dataset_cfg,"train"

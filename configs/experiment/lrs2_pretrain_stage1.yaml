@@ -4,8 +4,8 @@
 # python train.py experiment=example
 
 defaults:
-  - override /data: grid.yaml
-  - override /model: grid.yaml
+  - override /data: lrs2.yaml
+  - override /model: resnet_transformer.yaml
   - override /callbacks: default.yaml
   - override /trainer: ddp.yaml
   - override /logger: tensorboard.yaml
@@ -13,23 +13,28 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["grid", "lipnet","ctc"]
+tags: ["lrs2", "resnet","transformer"]
 
-seed: 12345
+seed: 4211
 
 trainer:
-  max_epochs: 80
-  gradient_clip_val: 35
-  check_val_every_n_epoch: 5
+  max_epochs: 300
+  gradient_clip_val: 0.5
+  check_val_every_n_epoch: 1
+  accumulate_grad_batches: 10
+  precision: 16
 
-datamodule:
-  batch_size: 64
+data:
+  batch_size: 160
+  num_workers: 4
+  pretrain: True
+  stage: 1
 
 callbacks:
   early_stopping:
     monitor: val/wer
     mode: min
-    patience: 20
+    patience: 300
 
   model_checkpoint:
     filename: epoch_{epoch:03d}_val-wer_{val/wer:03f}
@@ -37,9 +42,9 @@ callbacks:
     mode: min
 
 paths:
-  log_dir: ${paths.root_dir}/logs/grid_lipnet_ctc
+  log_dir: ${paths.root_dir}/logs/resnet_transformer
 
 logger:
   tensorboard:
-    name: grid_lipnet_ctc
+    name: resnet_transformer
     
